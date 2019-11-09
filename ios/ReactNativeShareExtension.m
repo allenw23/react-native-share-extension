@@ -9,6 +9,10 @@
 
 NSExtensionContext* extensionContext;
 
+// Save a copy of the RCTBridge to reuse. Creating a new bridge
+// each time this saves mempory.
+RCTBridge *sharedBridge;
+
 @implementation ReactNativeShareExtension {
     NSTimer *autoTimer;
     NSString* type;
@@ -38,7 +42,19 @@ RCT_EXPORT_MODULE();
     //variable extensionContext. in this way, both exported method can touch extensionContext
     extensionContext = self.extensionContext;
 
-    UIView *rootView = [self shareView];
+    if (sharedBridge == nil) {
+        sharedBridge = [[RCTBridge alloc] initWithBundleURL:jsCodeLocation
+                                             moduleProvider:nil
+                                              launchOptions:nil];
+    }
+    
+    UIView *rootView = [self shareViewWithRCTBridge:sharedBridge];
+    
+    if (rootView == nil) {
+        // Fallback to the previous version if shareViewWithRCTBridge isn't implemented.
+        rootView = [self shareView];
+    }
+    
     if (rootView.backgroundColor == nil) {
         rootView.backgroundColor = [[UIColor alloc] initWithRed:1 green:1 blue:1 alpha:0.1];
     }
@@ -50,6 +66,12 @@ RCT_EXPORT_MODULE();
 RCT_EXPORT_METHOD(close) {
     [extensionContext completeRequestReturningItems:nil
                                   completionHandler:nil];
+    
+    // Set the view to nil so it gets cleaned up.
+    self.view = nil;
+
+    [sharedBridge invalidate];
+    sharedBridge = nil;
 }
 
 
